@@ -31,7 +31,11 @@ class WpConnection extends MySqlConnection
         static $instance = false;
         global $wpdb;
         if (!$instance) {
-            $instance = new self($wpdb,DB_NAME,$wpdb->prefix);
+            $dbName=DB_NAME;
+            if(isset($wpdb->dbname)){
+                $dbName=$wpdb->dbname;
+            }
+            $instance = new self($wpdb,$dbName,$wpdb->prefix);
         }
         return $instance;
     }
@@ -129,28 +133,24 @@ class WpConnection extends MySqlConnection
      */
     public function unprepared($query)
     {
-        return $this->runRawQuery($query,true);
+        return (bool)$this->runRawQuery($query);
     }
 
     /**
      * Run raw sql query
      * @param $query
-     * @param bool $returnBoolean
-     * @return mixed
+     * @return int
      */
-    protected function runRawQuery($query, $returnBoolean=false){
-        return $this->run($query, [], function ($query) use($returnBoolean) {
+    protected function runRawQuery($query){
+        return $this->run($query, [], function ($query) {
             if ($this->pretending()) {
-                return true;
+                return 1;
             }
             $error=$this->db->suppress_errors();
             $result = $this->db->query($query);
             $this->db->suppress_errors($error);
             if($this->db->last_error){
                 throw new QueryException($query, [], new Exception($this->db->last_error));
-            }
-            if($returnBoolean){
-                true;
             }
             return intval($result);
         });
@@ -197,7 +197,7 @@ class WpConnection extends MySqlConnection
             // Micro-optimization: check for scalar values before instances
             if (is_bool($value)) {
                 $bindings[$key] = intval($value);
-            } elseif (is_scalar($value)) {
+            } elseif (is_scalar($value) || is_null($value)) {//null is not scalar but expected to keep
                 continue;
             } elseif ($value instanceof DateTime) {
                 // We need to transform all instances of the DateTime class into an actual

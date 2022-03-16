@@ -1,35 +1,39 @@
 {
   "name": "vc4africa/wp-eloquent",
-  "description": "Eloquent for wordpress",
-  "keywords": ["php", "storage", "drive","google","google-drive"],
-  "homepage": "https://github.com/as247",
+  "description": "Eloquent ORM for wordpress",
   "license": "MIT",
-  "authors": [
-    {
-      "name": "As247",
-      "email": "as247@vui360.com",
-      "homepage": "http://as247.vui360.com"
-    }
-  ],
-  "require": {
-    "php": "^7.2 || ^8.0",
-    "ext-json": "*",
-    "ext-pdo": "*",
-    "ext-mbstring": "*"
+  "homepage": "https://github.com/as247/wp-eloquent",
+  "support": {
+      "issues": "https://github.com/as247/wp-eloquent/issues",
+      "source": "https://github.com/as247/wp-eloquent"
   },
-  "suggest": {
-    "doctrine/dbal": "Required to rename columns and drop SQLite columns (^2.6).",
-    "fzaninotto/faker": "Required to use the eloquent factory builder (^1.9.1).",
-    "symfony/finder": "Required to use Eloquent model factories (^4.3.4)."
-  },
-  "autoload": {
-    "psr-4": {
-      "As247\\WpEloquent\\": "src/"
+  "keywords": ["laravel", "database", "sql", "orm", "as247","wp-eloquent"],
+    "authors": [
+        {
+            "name": "As247",
+            "email": "as247@vui360.com"
+        }
+    ],
+    "require": {
+        "php": "^7.3 || ^8.0",
+        "ext-json": "*",
+        "ext-pdo": "*"
     },
-    "files":[
-      "src/Support/helpers.php"
-    ]
-  },
-  "minimum-stability": "dev",
-  "prefer-stable": true
+    "autoload": {
+        "psr-4": {
+            "As247\\WpEloquent\\": "src"
+        },
+        "files":[
+            "src/Support/helpers.php"
+        ]
+    },
+    "suggest": {
+        "doctrine/dbal": "Required to rename columns and drop SQLite columns (^2.6).",
+        "fzaninotto/faker": "Required to use the eloquent factory builder (^1.9.1).",
+        "symfony/finder": "Required to use Eloquent model factories (^5.1)."
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "dev"
 }
