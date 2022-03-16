@@ -27,72 +27,81 @@ class LengthAwarePaginator extends AbstractPaginator implements Arrayable, Array
      */
     protected $lastPage;
 
+
     /**
      * Create a new paginator instance.
      *
-     * @param  mixed  $items
-     * @param  int  $total
-     * @param  int  $perPage
-     * @param  int|null  $currentPage
-     * @param  array  $options (path, query, fragment, pageName)
+     * @param mixed    $items
+     * @param int      $total
+     * @param int      $perPage
+     * @param int|null $currentPage
+     * @param array    $options (path, query, fragment, pageName)
+     *
      * @return void
      */
-    public function __construct($items, $total, $perPage, $currentPage = null, array $options = [])
+    public function __construct( $items, $total, $perPage, $currentPage = null, array $options = [] )
     {
         $this->options = $options;
 
-        foreach ($options as $key => $value) {
+        foreach( $options as $key => $value ) {
             $this->{$key} = $value;
         }
 
         $this->total = $total;
         $this->perPage = $perPage;
-        $this->lastPage = max((int) ceil($total / $perPage), 1);
-        $this->path = $this->path !== '/' ? rtrim($this->path, '/') : $this->path;
-        $this->currentPage = $this->setCurrentPage($currentPage, $this->pageName);
-        $this->items = $items instanceof Collection ? $items : Collection::make($items);
+        $this->lastPage = max( (int) ceil( $total / $perPage ), 1 );
+        $this->path = $this->path !== '/' ? rtrim( $this->path, '/' ) : $this->path;
+        $this->currentPage = $this->setCurrentPage( $currentPage, $this->pageName );
+        $this->items = $items instanceof Collection ? $items : Collection::make( $items );
     }
+
 
     /**
      * Get the current page for the request.
      *
-     * @param  int  $currentPage
-     * @param  string  $pageName
+     * @param int    $currentPage
+     * @param string $pageName
+     *
      * @return int
      */
-    protected function setCurrentPage($currentPage, $pageName)
+    protected function setCurrentPage( $currentPage, $pageName )
     {
-        $currentPage = $currentPage ?: static::resolveCurrentPage($pageName);
+        $currentPage = $currentPage ? : static::resolveCurrentPage( $pageName );
 
-        return $this->isValidPageNumber($currentPage) ? (int) $currentPage : 1;
+        return $this->isValidPageNumber( $currentPage ) ? (int) $currentPage : 1;
     }
+
 
     /**
      * Render the paginator using the given view.
      *
-     * @param  string|null  $view
-     * @param  array  $data
+     * @param string|null $view
+     * @param array       $data
+     *
      * @return \As247\WpEloquent\Contracts\Support\Htmlable
      */
-    public function links($view = null, $data = [])
+    public function links( $view = null, $data = [] )
     {
-        return $this->render($view, $data);
+        return $this->render( $view, $data );
     }
+
 
     /**
      * Render the paginator using the given view.
      *
-     * @param  string|null  $view
-     * @param  array  $data
+     * @param string|null $view
+     * @param array       $data
+     *
      * @return \As247\WpEloquent\Contracts\Support\Htmlable
      */
-    public function render($view = null, $data = [])
+    public function render( $view = null, $data = [] )
     {
-        return static::viewFactory()->make($view ?: static::$defaultView, array_merge($data, [
+        return static::viewFactory()->make( $view ? : static::$defaultView, array_merge( $data, [
             'paginator' => $this,
             'elements' => $this->elements(),
-        ]));
+        ] ) );
     }
+
 
     /**
      * Get the paginator links as a collection (for JSON responses).
@@ -101,28 +110,29 @@ class LengthAwarePaginator extends AbstractPaginator implements Arrayable, Array
      */
     protected function linkCollection()
     {
-        return asdb_collect($this->elements())->flatMap(function ($item) {
-            if (! is_array($item)) {
-                return [['url' => null, 'label' => '...', 'active' => false]];
+        return asdb_collect( $this->elements() )->flatMap( function ( $item ) {
+            if( ! is_array( $item ) ) {
+                return [ [ 'url' => null, 'label' => '...', 'active' => false ] ];
             }
 
-            return asdb_collect($item)->map(function ($url, $page) {
+            return asdb_collect( $item )->map( function ( $url, $page ) {
                 return [
                     'url' => $url,
                     'label' => $page,
                     'active' => $this->currentPage() === $page,
                 ];
-            });
-        })->prepend([
+            } );
+        } )->prepend( [
             'url' => $this->previousPageUrl(),
             'label' => 'Previous',
             'active' => false,
-        ])->push([
+        ] )->push( [
             'url' => $this->nextPageUrl(),
             'label' => 'Next',
             'active' => false,
-        ]);
+        ] );
     }
+
 
     /**
      * Get the array of elements to pass to the view.
@@ -131,16 +141,17 @@ class LengthAwarePaginator extends AbstractPaginator implements Arrayable, Array
      */
     protected function elements()
     {
-        $window = UrlWindow::make($this);
+        $window = UrlWindow::make( $this );
 
-        return array_filter([
+        return array_filter( [
             $window['first'],
-            is_array($window['slider']) ? '...' : null,
+            is_array( $window['slider'] ) ? '...' : null,
             $window['slider'],
-            is_array($window['last']) ? '...' : null,
+            is_array( $window['last'] ) ? '...' : null,
             $window['last'],
-        ]);
+        ] );
     }
+
 
     /**
      * Get the total number of items being paginated.
@@ -152,6 +163,7 @@ class LengthAwarePaginator extends AbstractPaginator implements Arrayable, Array
         return $this->total;
     }
 
+
     /**
      * Determine if there are more items in the data source.
      *
@@ -162,6 +174,7 @@ class LengthAwarePaginator extends AbstractPaginator implements Arrayable, Array
         return $this->currentPage() < $this->lastPage();
     }
 
+
     /**
      * Get the URL for the next page.
      *
@@ -169,10 +182,11 @@ class LengthAwarePaginator extends AbstractPaginator implements Arrayable, Array
      */
     public function nextPageUrl()
     {
-        if ($this->hasMorePages()) {
-            return $this->url($this->currentPage() + 1);
+        if( $this->hasMorePages() ) {
+            return $this->url( $this->currentPage() + 1 );
         }
     }
+
 
     /**
      * Get the last page.
@@ -184,6 +198,7 @@ class LengthAwarePaginator extends AbstractPaginator implements Arrayable, Array
         return $this->lastPage;
     }
 
+
     /**
      * Get the instance as an array.
      *
@@ -194,10 +209,10 @@ class LengthAwarePaginator extends AbstractPaginator implements Arrayable, Array
         return [
             'current_page' => $this->currentPage(),
             'data' => $this->items->toArray(),
-            'first_page_url' => $this->url(1),
+            'first_page_url' => $this->url( 1 ),
             'from' => $this->firstItem(),
             'last_page' => $this->lastPage(),
-            'last_page_url' => $this->url($this->lastPage()),
+            'last_page_url' => $this->url( $this->lastPage() ),
             'links' => $this->linkCollection()->toArray(),
             'next_page_url' => $this->nextPageUrl(),
             'path' => $this->path(),
@@ -208,24 +223,27 @@ class LengthAwarePaginator extends AbstractPaginator implements Arrayable, Array
         ];
     }
 
+
     /**
      * Convert the object into something JSON serializable.
      *
-     * @return array
+     * @return mixed
      */
-    public function jsonSerialize()
+    public function jsonSerialize() : mixed
     {
         return $this->toArray();
     }
 
+
     /**
      * Convert the object to its JSON representation.
      *
-     * @param  int  $options
+     * @param int $options
+     *
      * @return string
      */
-    public function toJson($options = 0)
+    public function toJson( $options = 0 ) : string
     {
-        return json_encode($this->jsonSerialize(), $options);
+        return json_encode( $this->jsonSerialize(), $options );
     }
 }
