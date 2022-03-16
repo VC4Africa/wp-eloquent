@@ -5,7 +5,9 @@ namespace As247\WpEloquent\Support;
 use ArrayAccess;
 use As247\WpEloquent\Contracts\Support\Arrayable;
 use As247\WpEloquent\Contracts\Support\Jsonable;
+use JetBrains\PhpStorm\Pure;
 use JsonSerializable;
+use ReturnTypeWillChange;
 
 class Fluent implements Arrayable, ArrayAccess, Jsonable, JsonSerializable
 {
@@ -14,179 +16,206 @@ class Fluent implements Arrayable, ArrayAccess, Jsonable, JsonSerializable
      *
      * @var array
      */
-    protected $attributes = [];
+    protected array $attributes = [];
+
 
     /**
      * Create a new fluent instance.
      *
-     * @param  array|object  $attributes
+     * @param array|object $attributes
+     *
      * @return void
      */
-    public function __construct($attributes = [])
+    public function __construct( $attributes = [] )
     {
-        foreach ($attributes as $key => $value) {
-            $this->attributes[$key] = $value;
+        foreach( $attributes as $key => $value ) {
+            $this->attributes[ $key ] = $value;
         }
     }
+
 
     /**
      * Get an attribute from the fluent instance.
      *
-     * @param  string  $key
-     * @param  mixed  $default
+     * @param string $key
+     * @param mixed  $default
+     *
      * @return mixed
      */
-    public function get($key, $default = null)
+    public function get( string $key, mixed $default = null ) : mixed
     {
-        if (array_key_exists($key, $this->attributes)) {
-            return $this->attributes[$key];
+        if( array_key_exists( $key, $this->attributes ) ) {
+            return $this->attributes[ $key ];
         }
 
-        return asdb_value($default);
+        return asdb_value( $default );
     }
+
 
     /**
      * Get the attributes from the fluent instance.
      *
      * @return array
      */
-    public function getAttributes()
+    public function getAttributes() : array
     {
         return $this->attributes;
     }
+
 
     /**
      * Convert the fluent instance to an array.
      *
      * @return array
      */
-    public function toArray()
+    public function toArray() : array
     {
         return $this->attributes;
     }
+
 
     /**
      * Convert the object into something JSON serializable.
      *
      * @return array
      */
-    public function jsonSerialize()
+    #[Pure] public function jsonSerialize() : array
     {
         return $this->toArray();
     }
 
+
     /**
      * Convert the fluent instance to JSON.
      *
-     * @param  int  $options
+     * @param int $options
+     *
      * @return string
      */
-    public function toJson($options = 0)
+    public function toJson( $options = 0 ) : string
     {
-        return json_encode($this->jsonSerialize(), $options);
+        return json_encode( $this->jsonSerialize(), $options );
     }
+
 
     /**
      * Determine if the given offset exists.
      *
-     * @param  string  $offset
+     * @param string $offset
+     *
      * @return bool
      */
-    public function offsetExists($offset)
+    #[ReturnTypeWillChange] public function offsetExists( $offset ) : bool
     {
-        return isset($this->attributes[$offset]);
+        return isset( $this->attributes[ $offset ] );
     }
+
 
     /**
      * Get the value for a given offset.
      *
-     * @param  string  $offset
+     * @param string $offset
+     *
      * @return mixed
      */
-    public function offsetGet($offset)
+    #[ReturnTypeWillChange] public function offsetGet( $offset ) : mixed
     {
-        return $this->get($offset);
+        return $this->get( $offset );
     }
+
 
     /**
      * Set the value at the given offset.
      *
-     * @param  string  $offset
-     * @param  mixed  $value
+     * @param mixed $offset
+     * @param mixed $value
+     *
      * @return void
      */
-    public function offsetSet($offset, $value)
+    #[ReturnTypeWillChange] public function offsetSet( $offset, mixed $value )
     {
-        $this->attributes[$offset] = $value;
+        $this->attributes[ $offset ] = $value;
     }
+
 
     /**
      * Unset the value at the given offset.
      *
-     * @param  string  $offset
+     * @param string $offset
+     *
      * @return void
      */
-    public function offsetUnset($offset)
+    #[ReturnTypeWillChange] public function offsetUnset( $offset ) : void
     {
-        unset($this->attributes[$offset]);
+        unset( $this->attributes[ $offset ] );
     }
+
 
     /**
      * Handle dynamic calls to the fluent instance to set attributes.
      *
-     * @param  string  $method
-     * @param  array  $parameters
+     * @param string $method
+     * @param array  $parameters
+     *
      * @return $this
      */
-    public function __call($method, $parameters)
+    public function __call( string $method, array $parameters )
     {
-        $this->attributes[$method] = count($parameters) > 0 ? $parameters[0] : true;
+        $this->attributes[ $method ] = count( $parameters ) > 0 ? $parameters[0] : true;
 
         return $this;
     }
 
+
     /**
      * Dynamically retrieve the value of an attribute.
      *
-     * @param  string  $key
+     * @param string $key
+     *
      * @return mixed
      */
-    public function __get($key)
+    public function __get( string $key )
     {
-        return $this->get($key);
+        return $this->get( $key );
     }
+
 
     /**
      * Dynamically set the value of an attribute.
      *
-     * @param  string  $key
-     * @param  mixed  $value
+     * @param string $key
+     * @param mixed  $value
+     *
      * @return void
      */
-    public function __set($key, $value)
+    public function __set( string $key, mixed $value )
     {
-        $this->offsetSet($key, $value);
+        $this->offsetSet( $key, $value );
     }
+
 
     /**
      * Dynamically check if an attribute is set.
      *
-     * @param  string  $key
+     * @param string $key
+     *
      * @return bool
      */
-    public function __isset($key)
+    public function __isset( string $key )
     {
-        return $this->offsetExists($key);
+        return $this->offsetExists( $key );
     }
+
 
     /**
      * Dynamically unset an attribute.
      *
-     * @param  string  $key
+     * @param string $key
+     *
      * @return void
      */
-    public function __unset($key)
+    public function __unset( string $key )
     {
-        $this->offsetUnset($key);
+        $this->offsetUnset( $key );
     }
 }

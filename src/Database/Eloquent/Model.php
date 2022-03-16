@@ -3,6 +3,8 @@
 namespace As247\WpEloquent\Database\Eloquent;
 
 use ArrayAccess;
+use As247\WpEloquent\Contracts\Events\Dispatcher;
+use As247\WpEloquent\Database\ConnectionInterface;
 use Exception;
 use As247\WpEloquent\Contracts\Queue\QueueableCollection;
 use As247\WpEloquent\Contracts\Queue\QueueableEntity;
@@ -17,7 +19,9 @@ use As247\WpEloquent\Support\Arr;
 use As247\WpEloquent\Support\Collection as BaseCollection;
 use As247\WpEloquent\Support\Str;
 use As247\WpEloquent\Support\Traits\ForwardsCalls;
+use JetBrains\PhpStorm\Pure;
 use JsonSerializable;
+use ReturnTypeWillChange;
 
 abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializable, QueueableEntity
 {
@@ -35,134 +39,136 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
      *
      * @var string|null
      */
-    protected $connection;
+    protected ?string $connection;
 
     /**
      * The table associated with the model.
      *
      * @var string
      */
-    protected $table;
+    protected string $table;
 
     /**
      * The primary key for the model.
      *
      * @var string
      */
-    protected $primaryKey = 'id';
+    protected string $primaryKey = 'id';
 
     /**
      * The "type" of the primary key ID.
      *
      * @var string
      */
-    protected $keyType = 'int';
+    protected string $keyType = 'int';
 
     /**
      * Indicates if the IDs are auto-incrementing.
      *
      * @var bool
      */
-    public $incrementing = true;
+    public bool $incrementing = true;
 
     /**
      * The relations to eager load on every query.
      *
      * @var array
      */
-    protected $with = [];
+    protected array $with = [];
 
     /**
      * The relationship counts that should be eager loaded on every query.
      *
      * @var array
      */
-    protected $withCount = [];
+    protected array $withCount = [];
 
     /**
      * The number of models to return for pagination.
      *
      * @var int
      */
-    protected $perPage = 15;
+    protected int $perPage = 15;
 
     /**
      * Indicates if the model exists.
      *
      * @var bool
      */
-    public $exists = false;
+    public bool $exists = false;
 
     /**
      * Indicates if the model was inserted during the current request lifecycle.
      *
      * @var bool
      */
-    public $wasRecentlyCreated = false;
+    public bool $wasRecentlyCreated = false;
 
     /**
      * The connection resolver instance.
      *
-     * @var \As247\WpEloquent\Database\ConnectionResolverInterface
+     * @var Resolver|null
      */
-    protected static $resolver;
+    protected static ?Resolver $resolver;
 
     /**
      * The event dispatcher instance.
      *
-     * @var \As247\WpEloquent\Contracts\Events\Dispatcher
+     * @var Dispatcher
      */
-    protected static $dispatcher;
+    protected static Dispatcher $dispatcher;
 
     /**
      * The array of booted models.
      *
      * @var array
      */
-    protected static $booted = [];
+    protected static array $booted = [];
 
     /**
      * The array of trait initializers that will be called on each new instance.
      *
      * @var array
      */
-    protected static $traitInitializers = [];
+    protected static array $traitInitializers = [];
 
     /**
      * The array of global scopes on the model.
      *
      * @var array
      */
-    protected static $globalScopes = [];
+    protected static array $globalScopes = [];
 
     /**
      * The list of models classes that should not be affected with touch.
      *
      * @var array
      */
-    protected static $ignoreOnTouch = [];
+    protected static array $ignoreOnTouch = [];
 
     /**
      * The name of the "created at" column.
      *
      * @var string
      */
-    const CREATED_AT = 'created_at';
+    public const CREATED_AT = 'created_at';
 
     /**
      * The name of the "updated at" column.
      *
      * @var string
      */
-    const UPDATED_AT = 'updated_at';
+    public const UPDATED_AT = 'updated_at';
+
 
     /**
      * Create a new Eloquent model instance.
      *
-     * @param  array  $attributes
+     * @param array $attributes
+     *
      * @return void
      */
-    public function __construct(array $attributes = [])
+    public function __construct( array $attributes = [] )
     {
         $this->bootIfNotBooted();
 
@@ -170,80 +176,85 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
 
         $this->syncOriginal();
 
-        $this->fill($attributes);
+        $this->fill( $attributes );
     }
+
 
     /**
      * Check if the model needs to be booted and if so, do it.
      *
      * @return void
      */
-    protected function bootIfNotBooted()
+    protected function bootIfNotBooted() : void
     {
-        if (! isset(static::$booted[static::class])) {
-            static::$booted[static::class] = true;
+        if( ! isset( static::$booted[ static::class ] ) ) {
+            static::$booted[ static::class ] = true;
 
-            $this->fireModelEvent('booting', false);
+            $this->fireModelEvent( 'booting', false );
 
             static::booting();
             static::boot();
             static::booted();
 
-            $this->fireModelEvent('booted', false);
+            $this->fireModelEvent( 'booted', false );
         }
     }
+
 
     /**
      * Perform any actions required before the model boots.
      *
      * @return void
      */
-    protected static function booting()
+    protected static function booting() : void
     {
         //
     }
+
 
     /**
      * Bootstrap the model and its traits.
      *
      * @return void
      */
-    protected static function boot()
+    protected static function boot() : void
     {
         static::bootTraits();
     }
+
 
     /**
      * Boot all of the bootable traits on the model.
      *
      * @return void
      */
-    protected static function bootTraits()
+    protected static function bootTraits() : void
     {
         $class = static::class;
 
         $booted = [];
 
-        static::$traitInitializers[$class] = [];
+        static::$traitInitializers[ $class ] = [];
 
-        foreach (asdb_class_uses_recursive($class) as $trait) {
-            $method = 'boot'.asdb_class_basename($trait);
+        foreach( asdb_class_uses_recursive( $class ) as $trait ) {
+            $method = 'boot' . asdb_class_basename( $trait );
 
-            if (method_exists($class, $method) && ! in_array($method, $booted)) {
-                forward_static_call([$class, $method]);
+            if( method_exists( $class, $method ) && ! in_array( $method, $booted ) ) {
+                forward_static_call( [ $class, $method ] );
 
                 $booted[] = $method;
             }
 
-            if (method_exists($class, $method = 'initialize'.asdb_class_basename($trait))) {
-                static::$traitInitializers[$class][] = $method;
+            if( method_exists( $class, $method = 'initialize' . asdb_class_basename( $trait ) ) ) {
+                static::$traitInitializers[ $class ][] = $method;
 
-                static::$traitInitializers[$class] = array_unique(
-                    static::$traitInitializers[$class]
+                static::$traitInitializers[ $class ] = array_unique(
+                    static::$traitInitializers[ $class ]
                 );
             }
         }
     }
+
 
     /**
      * Initialize any initializable traits on the model.
@@ -252,78 +263,87 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
      */
     protected function initializeTraits()
     {
-        foreach (static::$traitInitializers[static::class] as $method) {
+        foreach( static::$traitInitializers[ static::class ] as $method ) {
             $this->{$method}();
         }
     }
+
 
     /**
      * Perform any actions required after the model boots.
      *
      * @return void
      */
-    protected static function booted()
+    protected static function booted() : void
     {
         //
     }
+
 
     /**
      * Clear the list of booted models so they will be re-booted.
      *
      * @return void
      */
-    public static function clearBootedModels()
+    public static function clearBootedModels() : void
     {
         static::$booted = [];
 
         static::$globalScopes = [];
     }
 
+
     /**
      * Disables relationship model touching for the current class during given callback scope.
      *
-     * @param  callable  $callback
+     * @param callable $callback
+     *
      * @return void
      */
-    public static function withoutTouching(callable $callback)
+    public static function withoutTouching( callable $callback ) : void
     {
-        static::withoutTouchingOn([static::class], $callback);
+        static::withoutTouchingOn( [ static::class ], $callback );
     }
+
 
     /**
      * Disables relationship model touching for the given model classes during given callback scope.
      *
-     * @param  array  $models
-     * @param  callable  $callback
+     * @param array    $models
+     * @param callable $callback
+     *
      * @return void
      */
-    public static function withoutTouchingOn(array $models, callable $callback)
+    public static function withoutTouchingOn( array $models, callable $callback ) : void
     {
-        static::$ignoreOnTouch = array_values(array_merge(static::$ignoreOnTouch, $models));
+        static::$ignoreOnTouch = array_values( array_merge( static::$ignoreOnTouch, $models ) );
 
         try {
             $callback();
-        } finally {
-            static::$ignoreOnTouch = array_values(array_diff(static::$ignoreOnTouch, $models));
+        }
+        finally {
+            static::$ignoreOnTouch = array_values( array_diff( static::$ignoreOnTouch, $models ) );
         }
     }
+
 
     /**
      * Determine if the given model is ignoring touches.
      *
-     * @param  string|null  $class
+     * @param string|null $class
+     *
      * @return bool
      */
-    public static function isIgnoringTouch($class = null)
+    public static function isIgnoringTouch( string $class = null ) : bool
     {
-        $class = $class ?: static::class;
+        $class = $class ? : static::class;
 
-        if (! get_class_vars($class)['timestamps'] || ! $class::UPDATED_AT) {
+        if( ! get_class_vars( $class )['timestamps'] || ! $class::UPDATED_AT ) {
             return true;
         }
 
-        foreach (static::$ignoreOnTouch as $ignoredClass) {
-            if ($class === $ignoredClass || is_subclass_of($class, $ignoredClass)) {
+        foreach( static::$ignoreOnTouch as $ignoredClass ) {
+            if( $class === $ignoredClass || is_subclass_of( $class, $ignoredClass ) ) {
                 return true;
             }
         }
@@ -331,76 +351,84 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
         return false;
     }
 
+
     /**
      * Fill the model with an array of attributes.
      *
-     * @param  array  $attributes
+     * @param array $attributes
+     *
      * @return $this
      *
-     * @throws \As247\WpEloquent\Database\Eloquent\MassAssignmentException
+     * @throws MassAssignmentException
      */
-    public function fill(array $attributes)
+    public function fill( array $attributes ) : static
     {
         $totallyGuarded = $this->totallyGuarded();
 
-        foreach ($this->fillableFromArray($attributes) as $key => $value) {
+        foreach( $this->fillableFromArray( $attributes ) as $key => $value ) {
             // The developers may choose to place some attributes in the "fillable" array
             // which means only those attributes may be set through mass assignment to
             // the model, and all others will just get ignored for security reasons.
-            if ($this->isFillable($key)) {
-                $this->setAttribute($key, $value);
-            } elseif ($totallyGuarded) {
-                throw new MassAssignmentException(sprintf(
+            if( $this->isFillable( $key ) ) {
+                $this->setAttribute( $key, $value );
+            } elseif( $totallyGuarded ) {
+                throw new MassAssignmentException( sprintf(
                     'Add [%s] to fillable property to allow mass assignment on [%s].',
-                    $key, get_class($this)
-                ));
+                    $key, get_class( $this )
+                ) );
             }
         }
 
         return $this;
     }
 
+
     /**
      * Fill the model with an array of attributes. Force mass assignment.
      *
-     * @param  array  $attributes
+     * @param array $attributes
+     *
      * @return $this
      */
-    public function forceFill(array $attributes)
+    public function forceFill( array $attributes ) : static
     {
-        return static::unguarded(function () use ($attributes) {
-            return $this->fill($attributes);
-        });
+        return static::unguarded( function () use ( $attributes ) {
+            return $this->fill( $attributes );
+        } );
     }
+
 
     /**
      * Qualify the given column name by the model's table.
      *
-     * @param  string  $column
+     * @param string $column
+     *
      * @return string
      */
-    public function qualifyColumn($column)
+    public function qualifyColumn( string $column ) : string
     {
-        if (Str::contains($column, '.')) {
+        if( Str::contains( $column, '.' ) ) {
             return $column;
         }
 
-        return $this->getTable().'.'.$column;
+        return $this->getTable() . '.' . $column;
     }
+
 
     /**
      * Create a new instance of the given model.
      *
-     * @param  array  $attributes
-     * @param  bool  $exists
+     * @param array $attributes
+     * @param bool  $exists
+     *
      * @return static
      */
-    public function newInstance($attributes = [], $exists = false)
+    public function newInstance( array $attributes = [], bool $exists = false ) : static
     {
         // This method just provides a convenient way for us to generate fresh model
         // instances of this current model. It is particularly useful during the
         // hydration of new objects via the Eloquent query builder instances.
-        $model = new static((array) $attributes);
+        $model = new static( (array) $attributes );
 
         $model->exists = $exists;
 
@@ -408,262 +436,290 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
             $this->getConnectionName()
         );
 
-        $model->setTable($this->getTable());
+        $model->setTable( $this->getTable() );
 
-        $model->mergeCasts($this->casts);
+        $model->mergeCasts( $this->casts );
 
         return $model;
     }
+
 
     /**
      * Create a new model instance that is existing.
      *
-     * @param  array  $attributes
-     * @param  string|null  $connection
+     * @param array|\stdClass $attributes
+     * @param string|null     $connection
+     *
      * @return static
      */
-    public function newFromBuilder($attributes = [], $connection = null)
+    public function newFromBuilder( array|\stdClass $attributes = [], string $connection = null ) : static
     {
-        $model = $this->newInstance([], true);
+        $model = $this->newInstance( [], true );
 
-        $model->setRawAttributes((array) $attributes, true);
+        $model->setRawAttributes( (array) $attributes, true );
 
-        $model->setConnection($connection ?: $this->getConnectionName());
+        $model->setConnection( $connection ? : $this->getConnectionName() );
 
-        $model->fireModelEvent('retrieved', false);
+        $model->fireModelEvent( 'retrieved', false );
 
         return $model;
     }
 
+
     /**
      * Begin querying the model on a given connection.
      *
-     * @param  string|null  $connection
-     * @return \As247\WpEloquent\Database\Eloquent\Builder
+     * @param string|null $connection
+     *
+     * @return Builder
      */
-    public static function on($connection = null)
+    public static function on( string $connection = null ) : Builder
     {
         // First we will just create a fresh instance of this model, and then we can set the
         // connection on the model so that it is used for the queries we execute, as well
         // as being set on every relation we retrieve without a custom connection name.
         $instance = new static;
 
-        $instance->setConnection($connection);
+        $instance->setConnection( $connection );
 
         return $instance->newQuery();
     }
 
+
     /**
      * Begin querying the model on the write connection.
      *
-     * @return \As247\WpEloquent\Database\Query\Builder
+     * @return Builder
      */
-    public static function onWriteConnection()
+    public static function onWriteConnection() : Builder
     {
         return static::query()->useWritePdo();
     }
 
+
     /**
-     * Get all of the models from the database.
+     * Get all the models from the database.
      *
-     * @param  array|mixed  $columns
-     * @return \As247\WpEloquent\Database\Eloquent\Collection|static[]
+     * @param array|mixed $columns
+     *
+     * @return Collection|static[]
      */
-    public static function all($columns = ['*'])
+    public static function all( mixed $columns = [ '*' ] ) : Collection|static
     {
         return static::query()->get(
-            is_array($columns) ? $columns : func_get_args()
+            is_array( $columns ) ? $columns : func_get_args()
         );
     }
+
 
     /**
      * Begin querying a model with eager loading.
      *
-     * @param  array|string  $relations
-     * @return \As247\WpEloquent\Database\Eloquent\Builder
+     * @param array|string $relations
+     *
+     * @return Builder
      */
-    public static function with($relations)
+    public static function with( array|string $relations ) : Builder
     {
         return static::query()->with(
-            is_string($relations) ? func_get_args() : $relations
+            is_string( $relations ) ? func_get_args() : $relations
         );
     }
+
 
     /**
      * Eager load relations on the model.
      *
-     * @param  array|string  $relations
+     * @param array|string $relations
+     *
      * @return $this
      */
-    public function load($relations)
+    public function load( array|string $relations ) : static
     {
         $query = $this->newQueryWithoutRelationships()->with(
-            is_string($relations) ? func_get_args() : $relations
+            is_string( $relations ) ? func_get_args() : $relations
         );
 
-        $query->eagerLoadRelations([$this]);
+        $query->eagerLoadRelations( [ $this ] );
 
         return $this;
     }
+
 
     /**
      * Eager load relationships on the polymorphic relation of a model.
      *
-     * @param  string  $relation
-     * @param  array  $relations
+     * @param string $relation
+     * @param array  $relations
+     *
      * @return $this
      */
-    public function loadMorph($relation, $relations)
+    public function loadMorph( string $relation, array $relations ) : self
     {
-        $className = get_class($this->{$relation});
+        $className = get_class( $this->{$relation} );
 
-        $this->{$relation}->load($relations[$className] ?? []);
+        $this->{$relation}->load( $relations[ $className ] ?? [] );
 
         return $this;
     }
+
 
     /**
      * Eager load relations on the model if they are not already eager loaded.
      *
-     * @param  array|string  $relations
+     * @param array|string $relations
+     *
      * @return $this
      */
-    public function loadMissing($relations)
+    public function loadMissing( array|string $relations ) : static
     {
-        $relations = is_string($relations) ? func_get_args() : $relations;
+        $relations = is_string( $relations ) ? func_get_args() : $relations;
 
-        $this->newCollection([$this])->loadMissing($relations);
+        $this->newCollection( [ $this ] )->loadMissing( $relations );
 
         return $this;
     }
+
 
     /**
      * Eager load relation counts on the model.
      *
-     * @param  array|string  $relations
+     * @param array|string $relations
+     *
      * @return $this
      */
-    public function loadCount($relations)
+    public function loadCount( array|string $relations ) : static
     {
-        $relations = is_string($relations) ? func_get_args() : $relations;
+        $relations = is_string( $relations ) ? func_get_args() : $relations;
 
-        $this->newCollection([$this])->loadCount($relations);
+        $this->newCollection( [ $this ] )->loadCount( $relations );
 
         return $this;
     }
+
 
     /**
      * Eager load relationship counts on the polymorphic relation of a model.
      *
-     * @param  string  $relation
-     * @param  array  $relations
+     * @param string $relation
+     * @param array  $relations
+     *
      * @return $this
      */
-    public function loadMorphCount($relation, $relations)
+    public function loadMorphCount( string $relation, array $relations ) : static
     {
-        $className = get_class($this->{$relation});
+        $className = get_class( $this->{$relation} );
 
-        $this->{$relation}->loadCount($relations[$className] ?? []);
+        $this->{$relation}->loadCount( $relations[ $className ] ?? [] );
 
         return $this;
     }
 
+
     /**
      * Increment a column's value by a given amount.
      *
-     * @param  string  $column
-     * @param  float|int  $amount
-     * @param  array  $extra
-     * @return int
+     * @param string $column
+     * @param int    $amount
+     * @param array  $extra
+     *
+     * @return bool|int
      */
-    protected function increment($column, $amount = 1, array $extra = [])
+    protected function increment( string $column, int $amount = 1, array $extra = [] ) : bool|int
     {
-        return $this->incrementOrDecrement($column, $amount, $extra, 'increment');
+        return $this->incrementOrDecrement( $column, $amount, $extra, 'increment' );
     }
+
 
     /**
      * Decrement a column's value by a given amount.
      *
-     * @param  string  $column
-     * @param  float|int  $amount
-     * @param  array  $extra
-     * @return int
+     * @param string $column
+     * @param int    $amount
+     * @param array  $extra
+     *
+     * @return bool|int
      */
-    protected function decrement($column, $amount = 1, array $extra = [])
+    protected function decrement( $column, $amount = 1, array $extra = [] ) : bool|int
     {
-        return $this->incrementOrDecrement($column, $amount, $extra, 'decrement');
+        return $this->incrementOrDecrement( $column, $amount, $extra, 'decrement' );
     }
+
 
     /**
      * Run the increment or decrement method on the model.
      *
-     * @param  string  $column
-     * @param  float|int  $amount
-     * @param  array  $extra
-     * @param  string  $method
+     * @param string    $column
+     * @param float|int $amount
+     * @param array     $extra
+     * @param string    $method
+     *
      * @return int
      */
-    protected function incrementOrDecrement($column, $amount, $extra, $method)
+    protected function incrementOrDecrement( $column, $amount, $extra, $method ) : bool|int
     {
         $query = $this->newQueryWithoutRelationships();
 
-        if (! $this->exists) {
-            return $query->{$method}($column, $amount, $extra);
+        if( ! $this->exists ) {
+            return $query->{$method}( $column, $amount, $extra );
         }
 
-        $this->{$column} = $this->{$column} + ($method === 'increment' ? $amount : $amount * -1);
+        $this->{$column} = $this->{$column} + ( $method === 'increment' ? $amount : $amount * -1 );
 
-        $this->forceFill($extra);
+        $this->forceFill( $extra );
 
-        if ($this->fireModelEvent('updating') === false) {
+        if( $this->fireModelEvent( 'updating' ) === false ) {
             return false;
         }
 
-        return asdb_tap($this->setKeysForSaveQuery($query)->{$method}($column, $amount, $extra), function () use ($column) {
+        return asdb_tap( $this->setKeysForSaveQuery( $query )->{$method}( $column, $amount, $extra ), function () use ( $column ) {
             $this->syncChanges();
 
-            $this->fireModelEvent('updated', false);
+            $this->fireModelEvent( 'updated', false );
 
-            $this->syncOriginalAttribute($column);
-        });
+            $this->syncOriginalAttribute( $column );
+        } );
     }
+
 
     /**
      * Update the model in the database.
      *
-     * @param  array  $attributes
-     * @param  array  $options
+     * @param array $attributes
+     * @param array $options
+     *
      * @return bool
      */
-    public function update(array $attributes = [], array $options = [])
+    public function update( array $attributes = [], array $options = [] ) : bool
     {
-        if (! $this->exists) {
+        if( ! $this->exists ) {
             return false;
         }
 
-        return $this->fill($attributes)->save($options);
+        return $this->fill( $attributes )->save( $options );
     }
+
 
     /**
      * Save the model and all of its relationships.
      *
      * @return bool
      */
-    public function push()
+    public function push() : bool
     {
-        if (! $this->save()) {
+        if( ! $this->save() ) {
             return false;
         }
 
         // To sync all of the relationships to the database, we will simply spin through
         // the relationships and save each model via this "push" method, which allows
         // us to recurse into all of these nested relations for the model instance.
-        foreach ($this->relations as $models) {
+        foreach( $this->relations as $models ) {
             $models = $models instanceof Collection
-                        ? $models->all() : [$models];
+                ? $models->all() : [ $models ];
 
-            foreach (array_filter($models) as $model) {
-                if (! $model->push()) {
+            foreach( array_filter( $models ) as $model ) {
+                if( ! $model->push() ) {
                     return false;
                 }
             }
@@ -672,26 +728,30 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
         return true;
     }
 
+
     /**
      * Save the model to the database without raising any events.
      *
-     * @param  array  $options
+     * @param array $options
+     *
      * @return bool
      */
-    public function saveQuietly(array $options = [])
+    public function saveQuietly( array $options = [] ) : bool
     {
-        return static::withoutEvents(function () use ($options) {
-            return $this->save($options);
-        });
+        return static::withoutEvents( function () use ( $options ) {
+            return $this->save( $options );
+        } );
     }
+
 
     /**
      * Save the model to the database.
      *
-     * @param  array  $options
+     * @param array $options
+     *
      * @return bool
      */
-    public function save(array $options = [])
+    public function save( array $options = [] ) : bool
     {
         $this->mergeAttributesFromClassCasts();
 
@@ -700,91 +760,96 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
         // If the "saving" event returns false we'll bail out of the save and return
         // false, indicating that the save failed. This provides a chance for any
         // listeners to cancel save operations if validations fail or whatever.
-        if ($this->fireModelEvent('saving') === false) {
+        if( $this->fireModelEvent( 'saving' ) === false ) {
             return false;
         }
 
         // If the model already exists in the database we can just update our record
         // that is already in this database using the current IDs in this "where"
         // clause to only update this model. Otherwise, we'll just insert them.
-        if ($this->exists) {
-            $saved = $this->isDirty() ?
-                        $this->performUpdate($query) : true;
+        if( $this->exists ) {
+            $saved = ! $this->isDirty() || $this->performUpdate( $query );
         }
 
         // If the model is brand new, we'll insert it into our database and set the
         // ID attribute on the model to the value of the newly inserted row's ID
         // which is typically an auto-increment value managed by the database.
         else {
-            $saved = $this->performInsert($query);
+            $saved = $this->performInsert( $query );
 
-            if (! $this->getConnectionName() &&
-                $connection = $query->getConnection()) {
-                $this->setConnection($connection->getName());
+            if( ! $this->getConnectionName() &&
+                $connection = $query->getConnection() ) {
+                $this->setConnection( $connection->getName() );
             }
         }
 
         // If the model is successfully saved, we need to do a few more things once
         // that is done. We will call the "saved" method here to run any actions
         // we need to happen after a model gets successfully saved right here.
-        if ($saved) {
-            $this->finishSave($options);
+        if( $saved ) {
+            $this->finishSave( $options );
         }
 
         return $saved;
     }
 
+
     /**
      * Save the model to the database using transaction.
      *
-     * @param  array  $options
+     * @param array $options
+     *
      * @return bool
      *
      * @throws \Throwable
      */
-    public function saveOrFail(array $options = [])
+    public function saveOrFail( array $options = [] ) : bool
     {
-        return $this->getConnection()->transaction(function () use ($options) {
-            return $this->save($options);
-        });
+        return $this->getConnection()->transaction( function () use ( $options ) {
+            return $this->save( $options );
+        } );
     }
+
 
     /**
      * Perform any actions that are necessary after the model is saved.
      *
-     * @param  array  $options
+     * @param array $options
+     *
      * @return void
      */
-    protected function finishSave(array $options)
+    protected function finishSave( array $options ) : void
     {
-        $this->fireModelEvent('saved', false);
+        $this->fireModelEvent( 'saved', false );
 
-        if ($this->isDirty() && ($options['touch'] ?? true)) {
+        if( $this->isDirty() && ( $options['touch'] ?? true ) ) {
             $this->touchOwners();
         }
 
         $this->syncOriginal();
     }
 
+
     /**
      * Perform a model update operation.
      *
-     * @param  \As247\WpEloquent\Database\Eloquent\Builder  $query
+     * @param Builder $query
+     *
      * @return bool
      */
-    protected function performUpdate(Builder $query)
+    protected function performUpdate( Builder $query ) : bool
     {
         // If the updating event returns false, we will cancel the update operation so
         // developers can hook Validation systems into their models and cancel this
         // operation if the model does not pass validation. Otherwise, we update.
-        if ($this->fireModelEvent('updating') === false) {
+        if( $this->fireModelEvent( 'updating' ) === false ) {
             return false;
         }
 
         // First we need to create a fresh query instance and touch the creation and
         // update timestamp on the model which are maintained by us for developer
         // convenience. Then we will just continue saving the model instances.
-        if ($this->usesTimestamps()) {
+        if( $this->usesTimestamps() ) {
             $this->updateTimestamps();
         }
 
@@ -793,57 +858,62 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
         // models are updated, giving them a chance to do any special processing.
         $dirty = $this->getDirty();
 
-        if (count($dirty) > 0) {
-            $this->setKeysForSaveQuery($query)->update($dirty);
+        if( count( $dirty ) > 0 ) {
+            $this->setKeysForSaveQuery( $query )->update( $dirty );
 
             $this->syncChanges();
 
-            $this->fireModelEvent('updated', false);
+            $this->fireModelEvent( 'updated', false );
         }
 
         return true;
     }
 
+
     /**
      * Set the keys for a save update query.
      *
-     * @param  \As247\WpEloquent\Database\Eloquent\Builder  $query
-     * @return \As247\WpEloquent\Database\Eloquent\Builder
+     * @param Builder $query
+     *
+     * @return Builder
      */
-    protected function setKeysForSaveQuery($query)
+    protected function setKeysForSaveQuery( Builder $query ) : Builder
     {
-        $query->where($this->getKeyName(), '=', $this->getKeyForSaveQuery());
+        $query->where( $this->getKeyName(), '=', $this->getKeyForSaveQuery() );
 
         return $query;
     }
+
 
     /**
      * Get the primary key value for a save query.
      *
      * @return mixed
      */
-    protected function getKeyForSaveQuery()
+    protected function getKeyForSaveQuery() : mixed
     {
-        return $this->original[$this->getKeyName()]
-                        ?? $this->getKey();
+        return $this->original[ $this->getKeyName() ]
+            ?? $this->getKey();
     }
+
 
     /**
      * Perform a model insert operation.
      *
-     * @param  \As247\WpEloquent\Database\Eloquent\Builder  $query
+     * @param Builder $query
+     *
      * @return bool
      */
-    protected function performInsert(Builder $query)
+    protected function performInsert( Builder $query ) : bool
     {
-        if ($this->fireModelEvent('creating') === false) {
+        if( $this->fireModelEvent( 'creating' ) === false ) {
             return false;
         }
 
         // First we'll need to create a fresh query instance and touch the creation and
         // update timestamps on this model, which are maintained by us for developer
         // convenience. After, we will just continue saving these model instances.
-        if ($this->usesTimestamps()) {
+        if( $this->usesTimestamps() ) {
             $this->updateTimestamps();
         }
 
@@ -852,19 +922,19 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
         // table from the database. Not all tables have to be incrementing though.
         $attributes = $this->getAttributes();
 
-        if ($this->getIncrementing()) {
-            $this->insertAndSetId($query, $attributes);
+        if( $this->getIncrementing() ) {
+            $this->insertAndSetId( $query, $attributes );
         }
 
         // If the table isn't incrementing we'll simply insert these attributes as they
         // are. These attribute arrays must contain an "id" column previously placed
         // there by the developer as the manually determined key for these models.
         else {
-            if (empty($attributes)) {
+            if( empty( $attributes ) ) {
                 return true;
             }
 
-            $query->insert($attributes);
+            $query->insert( $attributes );
         }
 
         // We will go ahead and set the exists property to true, so that it is set when
@@ -874,57 +944,62 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
 
         $this->wasRecentlyCreated = true;
 
-        $this->fireModelEvent('created', false);
+        $this->fireModelEvent( 'created', false );
 
         return true;
     }
 
+
     /**
      * Insert the given attributes and set the ID on the model.
      *
-     * @param  \As247\WpEloquent\Database\Eloquent\Builder  $query
-     * @param  array  $attributes
+     * @param Builder $query
+     * @param array   $attributes
+     *
      * @return void
      */
-    protected function insertAndSetId(Builder $query, $attributes)
+    protected function insertAndSetId( Builder $query, $attributes ) : void
     {
-        $id = $query->insertGetId($attributes, $keyName = $this->getKeyName());
+        $id = $query->insertGetId( $attributes, $keyName = $this->getKeyName() );
 
-        $this->setAttribute($keyName, $id);
+        $this->setAttribute( $keyName, $id );
     }
+
 
     /**
      * Destroy the models for the given IDs.
      *
-     * @param  \As247\WpEloquent\Support\Collection|array|int|string  $ids
+     * @param BaseCollection|array|int|string $ids
+     *
      * @return int
      */
-    public static function destroy($ids)
+    public static function destroy( $ids ) : int
     {
         // We'll initialize a count here so we will return the total number of deletes
         // for the operation. The developers can then check this number as a boolean
         // type value or get this total count of records deleted for logging, etc.
         $count = 0;
 
-        if ($ids instanceof BaseCollection) {
+        if( $ids instanceof BaseCollection ) {
             $ids = $ids->all();
         }
 
-        $ids = is_array($ids) ? $ids : func_get_args();
+        $ids = is_array( $ids ) ? $ids : func_get_args();
 
         // We will actually pull the models from the database table and call delete on
         // each of them individually so that their events get fired properly with a
         // correct set of attributes in case the developers wants to check these.
-        $key = ($instance = new static)->getKeyName();
+        $key = ( $instance = new static )->getKeyName();
 
-        foreach ($instance->whereIn($key, $ids)->get() as $model) {
-            if ($model->delete()) {
+        foreach( $instance->whereIn( $key, $ids )->get() as $model ) {
+            if( $model->delete() ) {
                 $count++;
             }
         }
 
         return $count;
     }
+
 
     /**
      * Delete the model from the database.
@@ -933,22 +1008,22 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
      *
      * @throws \Exception
      */
-    public function delete()
+    public function delete() : ?bool
     {
         $this->mergeAttributesFromClassCasts();
 
-        if (is_null($this->getKeyName())) {
-            throw new Exception('No primary key defined on model.');
+        if( is_null( $this->getKeyName() ) ) {
+            throw new Exception( 'No primary key defined on model.' );
         }
 
         // If the model doesn't exist, there is nothing to delete so we'll just return
         // immediately and not do anything else. Otherwise, we will continue with a
         // deletion process on the model, firing the proper events, and so forth.
-        if (! $this->exists) {
-            return;
+        if( ! $this->exists ) {
+            return null;
         }
 
-        if ($this->fireModelEvent('deleting') === false) {
+        if( $this->fireModelEvent( 'deleting' ) === false ) {
             return false;
         }
 
@@ -962,10 +1037,11 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
         // Once the model has been deleted, we will fire off the deleted event so that
         // the developers may hook into post-delete operations. We will then return
         // a boolean true as the delete is presumably successful on the database.
-        $this->fireModelEvent('deleted', false);
+        $this->fireModelEvent( 'deleted', false );
 
         return true;
     }
+
 
     /**
      * Force a hard delete on a soft deleted model.
@@ -973,277 +1049,310 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
      * This method protects developers from running forceDelete when trait is missing.
      *
      * @return bool|null
+     * @throws Exception
      */
-    public function forceDelete()
+    public function forceDelete() : ?bool
     {
         return $this->delete();
     }
+
 
     /**
      * Perform the actual delete query on this model instance.
      *
      * @return void
      */
-    protected function performDeleteOnModel()
+    protected function performDeleteOnModel() : void
     {
-        $this->setKeysForSaveQuery($this->newModelQuery())->delete();
+        $this->setKeysForSaveQuery( $this->newModelQuery() )->delete();
 
         $this->exists = false;
     }
 
+
     /**
      * Begin querying the model.
      *
-     * @return \As247\WpEloquent\Database\Eloquent\Builder
+     * @return Builder
      */
-    public static function query()
+    public static function query() : Builder
     {
-        return (new static)->newQuery();
+        return ( new static )->newQuery();
     }
+
 
     /**
      * Get a new query builder for the model's table.
      *
-     * @return \As247\WpEloquent\Database\Eloquent\Builder
+     * @return Builder
      */
-    public function newQuery()
+    public function newQuery() : Builder
     {
-        return $this->registerGlobalScopes($this->newQueryWithoutScopes());
+        return $this->registerGlobalScopes( $this->newQueryWithoutScopes() );
     }
+
 
     /**
      * Get a new query builder that doesn't have any global scopes or eager loading.
      *
-     * @return \As247\WpEloquent\Database\Eloquent\Builder|static
+     * @return Builder|static
      */
-    public function newModelQuery()
+    public function newModelQuery() : Builder|static
     {
         return $this->newEloquentBuilder(
             $this->newBaseQueryBuilder()
-        )->setModel($this);
+        )->setModel( $this );
     }
+
 
     /**
      * Get a new query builder with no relationships loaded.
      *
-     * @return \As247\WpEloquent\Database\Eloquent\Builder
+     * @return Builder
      */
-    public function newQueryWithoutRelationships()
+    public function newQueryWithoutRelationships() : Builder
     {
-        return $this->registerGlobalScopes($this->newModelQuery());
+        return $this->registerGlobalScopes( $this->newModelQuery() );
     }
+
 
     /**
      * Register the global scopes for this builder instance.
      *
-     * @param  \As247\WpEloquent\Database\Eloquent\Builder  $builder
-     * @return \As247\WpEloquent\Database\Eloquent\Builder
+     * @param Builder $builder
+     *
+     * @return Builder
      */
-    public function registerGlobalScopes($builder)
+    public function registerGlobalScopes( Builder $builder ) : Builder
     {
-        foreach ($this->getGlobalScopes() as $identifier => $scope) {
-            $builder->withGlobalScope($identifier, $scope);
+        foreach( $this->getGlobalScopes() as $identifier => $scope ) {
+            $builder->withGlobalScope( $identifier, $scope );
         }
 
         return $builder;
     }
 
+
     /**
      * Get a new query builder that doesn't have any global scopes.
      *
-     * @return \As247\WpEloquent\Database\Eloquent\Builder|static
+     * @return Builder|static
      */
-    public function newQueryWithoutScopes()
+    public function newQueryWithoutScopes() : Builder|static
     {
         return $this->newModelQuery()
-                    ->with($this->with)
-                    ->withCount($this->withCount);
+            ->with( $this->with )
+            ->withCount( $this->withCount );
     }
+
 
     /**
      * Get a new query instance without a given scope.
      *
-     * @param  \As247\WpEloquent\Database\Eloquent\Scope|string  $scope
-     * @return \As247\WpEloquent\Database\Eloquent\Builder
+     * @param Scope|string $scope
+     *
+     * @return Builder
      */
-    public function newQueryWithoutScope($scope)
+    public function newQueryWithoutScope( Scope|string $scope ) : Builder
     {
-        return $this->newQuery()->withoutGlobalScope($scope);
+        return $this->newQuery()->withoutGlobalScope( $scope );
     }
+
 
     /**
      * Get a new query to restore one or more models by their queueable IDs.
      *
-     * @param  array|int  $ids
-     * @return \As247\WpEloquent\Database\Eloquent\Builder
+     * @param int|array $ids
+     *
+     * @return Builder
      */
-    public function newQueryForRestoration($ids)
+    public function newQueryForRestoration( int|array $ids ) : Builder
     {
-        return is_array($ids)
-                ? $this->newQueryWithoutScopes()->whereIn($this->getQualifiedKeyName(), $ids)
-                : $this->newQueryWithoutScopes()->whereKey($ids);
+        return is_array( $ids )
+            ? $this->newQueryWithoutScopes()->whereIn( $this->getQualifiedKeyName(), $ids )
+            : $this->newQueryWithoutScopes()->whereKey( $ids );
     }
+
 
     /**
      * Create a new Eloquent query builder for the model.
      *
-     * @param  \As247\WpEloquent\Database\Query\Builder  $query
-     * @return \As247\WpEloquent\Database\Eloquent\Builder|static
+     * @param \As247\WpEloquent\Database\Query\Builder $query
+     *
+     * @return Builder|static
      */
-    public function newEloquentBuilder($query)
+    #[Pure] public function newEloquentBuilder( \As247\WpEloquent\Database\Query\Builder $query )
     {
-        return new Builder($query);
+        return new Builder( $query );
     }
+
 
     /**
      * Get a new query builder instance for the connection.
      *
      * @return \As247\WpEloquent\Database\Query\Builder
      */
-    protected function newBaseQueryBuilder()
+    protected function newBaseQueryBuilder() : \As247\WpEloquent\Database\Query\Builder
     {
         return $this->getConnection()->query();
     }
 
+
     /**
      * Create a new Eloquent Collection instance.
      *
-     * @param  array  $models
-     * @return \As247\WpEloquent\Database\Eloquent\Collection
+     * @param array $models
+     *
+     * @return Collection
      */
-    public function newCollection(array $models = [])
+    public function newCollection( array $models = [] ) : Collection
     {
-        return new Collection($models);
+        return new Collection( $models );
     }
+
 
     /**
      * Create a new pivot model instance.
      *
-     * @param  \As247\WpEloquent\Database\Eloquent\Model  $parent
-     * @param  array  $attributes
-     * @param  string  $table
-     * @param  bool  $exists
-     * @param  string|null  $using
-     * @return \As247\WpEloquent\Database\Eloquent\Relations\Pivot
+     * @param Model       $parent
+     * @param array       $attributes
+     * @param string      $table
+     * @param bool        $exists
+     * @param Pivot|null $using
+     *
+     * @return Pivot
      */
-    public function newPivot(self $parent, array $attributes, $table, $exists, $using = null)
+    public function newPivot( self $parent, array $attributes, string $table, bool $exists, ?Pivot $using = null ) : Pivot
     {
-        return $using ? $using::fromRawAttributes($parent, $attributes, $table, $exists)
-                      : Pivot::fromAttributes($parent, $attributes, $table, $exists);
+        return $using ? $using::fromRawAttributes( $parent, $attributes, $table, $exists )
+            : Pivot::fromAttributes( $parent, $attributes, $table, $exists );
     }
+
 
     /**
      * Determine if the model has a given scope.
      *
-     * @param  string  $scope
+     * @param string $scope
+     *
      * @return bool
      */
-    public function hasNamedScope($scope)
+    public function hasNamedScope( string $scope ) : bool
     {
-        return method_exists($this, 'scope'.ucfirst($scope));
+        return method_exists( $this, 'scope' . ucfirst( $scope ) );
     }
+
 
     /**
      * Apply the given named scope if possible.
      *
-     * @param  string  $scope
-     * @param  array  $parameters
+     * @param string $scope
+     * @param array  $parameters
+     *
      * @return mixed
      */
-    public function callNamedScope($scope, array $parameters = [])
+    public function callNamedScope( string $scope, array $parameters = [] ) : mixed
     {
-        return $this->{'scope'.ucfirst($scope)}(...$parameters);
+        return $this->{'scope' . ucfirst( $scope )}( ...$parameters );
     }
+
 
     /**
      * Convert the model instance to an array.
      *
      * @return array
      */
-    public function toArray()
+    public function toArray() : array
     {
-        return array_merge($this->attributesToArray(), $this->relationsToArray());
+        return array_merge( $this->attributesToArray(), $this->relationsToArray() );
     }
+
 
     /**
      * Convert the model instance to JSON.
      *
-     * @param  int  $options
+     * @param int $options
+     *
      * @return string
      *
-     * @throws \As247\WpEloquent\Database\Eloquent\JsonEncodingException
+     * @throws JsonEncodingException
      */
-    public function toJson($options = 0)
+    public function toJson( $options = 0 ) : string
     {
-        $json = json_encode($this->jsonSerialize(), $options);
+        $json = json_encode( $this->jsonSerialize(), $options );
 
-        if (JSON_ERROR_NONE !== json_last_error()) {
-            throw JsonEncodingException::forModel($this, json_last_error_msg());
+        if( JSON_ERROR_NONE !== json_last_error() ) {
+            throw JsonEncodingException::forModel( $this, json_last_error_msg() );
         }
 
         return $json;
     }
+
 
     /**
      * Convert the object into something JSON serializable.
      *
      * @return array
      */
-    public function jsonSerialize()
+    public function jsonSerialize() : array
     {
         return $this->toArray();
     }
 
+
     /**
      * Reload a fresh model instance from the database.
      *
-     * @param  array|string  $with
+     * @param array|string $with
+     *
      * @return static|null
      */
-    public function fresh($with = [])
+    public function fresh( array|string $with = [] ) : ?static
     {
-        if (! $this->exists) {
-            return;
+        if( ! $this->exists ) {
+            return null;
         }
 
-        return static::newQueryWithoutScopes()
-                        ->with(is_string($with) ? func_get_args() : $with)
-                        ->where($this->getKeyName(), $this->getKey())
-                        ->first();
+        return $this->newQueryWithoutScopes()
+            ->with( is_string( $with ) ? func_get_args() : $with )
+            ->where( $this->getKeyName(), $this->getKey() )
+            ->first();
     }
+
 
     /**
      * Reload the current model instance with fresh attributes from the database.
      *
      * @return $this
      */
-    public function refresh()
+    public function refresh() : static
     {
-        if (! $this->exists) {
+        if( ! $this->exists ) {
             return $this;
         }
 
         $this->setRawAttributes(
-            static::newQueryWithoutScopes()->findOrFail($this->getKey())->attributes
+            $this->newQueryWithoutScopes()->findOrFail( $this->getKey() )->attributes
         );
 
-        $this->load(asdb_collect($this->relations)->reject(function ($relation) {
+        $this->load( asdb_collect( $this->relations )->reject( function ( $relation ) {
             return $relation instanceof Pivot
-                || (is_object($relation) && in_array(AsPivot::class, asdb_class_uses_recursive($relation), true));
-        })->keys()->all());
+                || ( is_object( $relation ) && in_array( AsPivot::class, asdb_class_uses_recursive( $relation ), true ) );
+        } )->keys()->all() );
 
         $this->syncOriginal();
 
         return $this;
     }
 
+
     /**
      * Clone the model into a new, non-existing instance.
      *
-     * @param  array|null  $except
+     * @param array|null $except
+     *
      * @return static
      */
-    public function replicate(array $except = null)
+    public function replicate( array $except = null )
     {
         $defaults = [
             $this->getKeyName(),
@@ -1252,521 +1361,585 @@ abstract class Model implements Arrayable, ArrayAccess, Jsonable, JsonSerializab
         ];
 
         $attributes = Arr::except(
-            $this->getAttributes(), $except ? array_unique(array_merge($except, $defaults)) : $defaults
+            $this->getAttributes(), $except ? array_unique( array_merge( $except, $defaults ) ) : $defaults
         );
 
-        return asdb_tap(new static, function ($instance) use ($attributes) {
-            $instance->setRawAttributes($attributes);
+        return asdb_tap( new static, function ( $instance ) use ( $attributes ) {
+            $instance->setRawAttributes( $attributes );
 
-            $instance->setRelations($this->relations);
+            $instance->setRelations( $this->relations );
 
-            $instance->fireModelEvent('replicating', false);
-        });
+            $instance->fireModelEvent( 'replicating', false );
+        } );
     }
+
 
     /**
      * Determine if two models have the same ID and belong to the same table.
      *
-     * @param  \As247\WpEloquent\Database\Eloquent\Model|null  $model
+     * @param Model|null $model
+     *
      * @return bool
      */
-    public function is($model)
+    public function is( ?Model $model ) : bool
     {
-        return ! is_null($model) &&
-               $this->getKey() === $model->getKey() &&
-               $this->getTable() === $model->getTable() &&
-               $this->getConnectionName() === $model->getConnectionName();
+        return ! is_null( $model ) &&
+            $this->getKey() === $model->getKey() &&
+            $this->getTable() === $model->getTable() &&
+            $this->getConnectionName() === $model->getConnectionName();
     }
+
 
     /**
      * Determine if two models are not the same.
      *
-     * @param  \As247\WpEloquent\Database\Eloquent\Model|null  $model
+     * @param Model|null $model
+     *
      * @return bool
      */
-    public function isNot($model)
+    public function isNot( ?Model $model ) : bool
     {
-        return ! $this->is($model);
+        return ! $this->is( $model );
     }
+
 
     /**
      * Get the database connection for the model.
      *
-     * @return \As247\WpEloquent\Database\Connection
+     * @return ConnectionInterface
      */
-    public function getConnection()
+    public function getConnection() : ConnectionInterface
     {
-        return static::resolveConnection($this->getConnectionName());
+        return static::resolveConnection( $this->getConnectionName() );
     }
+
 
     /**
      * Get the current connection name for the model.
      *
      * @return string|null
      */
-    public function getConnectionName()
+    public function getConnectionName() : ?string
     {
-        return $this->connection;
+        return $this->connection ?? null;
     }
+
 
     /**
      * Set the connection associated with the model.
      *
-     * @param  string|null  $name
+     * @param string|null $name
+     *
      * @return $this
      */
-    public function setConnection($name)
+    public function setConnection( ?string $name ) : static
     {
         $this->connection = $name;
 
         return $this;
     }
 
+
     /**
      * Resolve a connection instance.
      *
-     * @param  string|null  $connection
-     * @return \As247\WpEloquent\Database\Connection
+     * @param string|null $connection
+     *
+     * @return ConnectionInterface
      */
-    public static function resolveConnection($connection = null)
+    public static function resolveConnection( string $connection = null ) : ConnectionInterface
     {
-        return static::$resolver->connection($connection);
+        return static::$resolver->connection( $connection );
     }
+
 
     /**
      * Get the connection resolver instance.
      *
-     * @return \As247\WpEloquent\Database\ConnectionResolverInterface
+     * @return Resolver
      */
     public static function getConnectionResolver()
     {
         return static::$resolver;
     }
 
+
     /**
      * Set the connection resolver instance.
      *
-     * @param  \As247\WpEloquent\Database\ConnectionResolverInterface  $resolver
+     * @param Resolver $resolver
+     *
      * @return void
      */
-    public static function setConnectionResolver(Resolver $resolver)
+    public static function setConnectionResolver( Resolver $resolver ) : void
     {
         static::$resolver = $resolver;
     }
+
 
     /**
      * Unset the connection resolver for models.
      *
      * @return void
      */
-    public static function unsetConnectionResolver()
+    public static function unsetConnectionResolver() : void
     {
         static::$resolver = null;
     }
+
 
     /**
      * Get the table associated with the model.
      *
      * @return string
      */
-    public function getTable()
+    public function getTable() : string
     {
-        return $this->table ?? Str::snake(Str::pluralStudly(asdb_class_basename($this)));
+        return $this->table ?? Str::snake( Str::pluralStudly( asdb_class_basename( $this ) ) );
     }
+
 
     /**
      * Set the table associated with the model.
      *
-     * @param  string  $table
+     * @param string $table
+     *
      * @return $this
      */
-    public function setTable($table)
+    public function setTable( string $table ) : static
     {
         $this->table = $table;
 
         return $this;
     }
 
+
     /**
      * Get the primary key for the model.
      *
      * @return string
      */
-    public function getKeyName()
+    public function getKeyName() : string
     {
         return $this->primaryKey;
     }
 
+
     /**
      * Set the primary key for the model.
      *
-     * @param  string  $key
+     * @param string $key
+     *
      * @return $this
      */
-    public function setKeyName($key)
+    public function setKeyName( string $key ) : static
     {
         $this->primaryKey = $key;
 
         return $this;
     }
 
+
     /**
      * Get the table qualified key name.
      *
      * @return string
      */
-    public function getQualifiedKeyName()
+    public function getQualifiedKeyName() : string
     {
-        return $this->qualifyColumn($this->getKeyName());
+        return $this->qualifyColumn( $this->getKeyName() );
     }
+
 
     /**
      * Get the auto-incrementing key type.
      *
      * @return string
      */
-    public function getKeyType()
+    public function getKeyType() : string
     {
         return $this->keyType;
     }
 
+
     /**
      * Set the data type for the primary key.
      *
-     * @param  string  $type
+     * @param string $type
+     *
      * @return $this
      */
-    public function setKeyType($type)
+    public function setKeyType( string $type ) : static
     {
         $this->keyType = $type;
 
         return $this;
     }
 
+
     /**
      * Get the value indicating whether the IDs are incrementing.
      *
      * @return bool
      */
-    public function getIncrementing()
+    public function getIncrementing() : bool
     {
         return $this->incrementing;
     }
 
+
     /**
      * Set whether IDs are incrementing.
      *
-     * @param  bool  $value
+     * @param bool $value
+     *
      * @return $this
      */
-    public function setIncrementing($value)
+    public function setIncrementing( bool $value ) : static
     {
         $this->incrementing = $value;
 
         return $this;
     }
 
+
     /**
      * Get the value of the model's primary key.
      *
      * @return mixed
      */
-    public function getKey()
+    public function getKey() : mixed
     {
-        return $this->getAttribute($this->getKeyName());
+        return $this->getAttribute( $this->getKeyName() );
     }
+
 
     /**
      * Get the queueable identity for the entity.
      *
      * @return mixed
      */
-    public function getQueueableId()
+    public function getQueueableId() : mixed
     {
         return $this->getKey();
     }
+
 
     /**
      * Get the queueable relationships for the entity.
      *
      * @return array
      */
-    public function getQueueableRelations()
+    public function getQueueableRelations() : array
     {
         $relations = [];
 
-        foreach ($this->getRelations() as $key => $relation) {
-            if (! method_exists($this, $key)) {
+        foreach( $this->getRelations() as $key => $relation ) {
+            if( ! method_exists( $this, $key ) ) {
                 continue;
             }
 
             $relations[] = $key;
 
-            if ($relation instanceof QueueableCollection) {
-                foreach ($relation->getQueueableRelations() as $collectionValue) {
-                    $relations[] = $key.'.'.$collectionValue;
+            if( $relation instanceof QueueableCollection ) {
+                foreach( $relation->getQueueableRelations() as $collectionValue ) {
+                    $relations[] = $key . '.' . $collectionValue;
                 }
             }
 
-            if ($relation instanceof QueueableEntity) {
-                foreach ($relation->getQueueableRelations() as $entityKey => $entityValue) {
-                    $relations[] = $key.'.'.$entityValue;
+            if( $relation instanceof QueueableEntity ) {
+                foreach( $relation->getQueueableRelations() as $entityValue ) {
+                    $relations[] = $key . '.' . $entityValue;
                 }
             }
         }
 
-        return array_unique($relations);
+        return array_unique( $relations );
     }
+
 
     /**
      * Get the queueable connection for the entity.
      *
      * @return string|null
      */
-    public function getQueueableConnection()
+    #[Pure] public function getQueueableConnection() : ?string
     {
         return $this->getConnectionName();
     }
+
 
     /**
      * Get the value of the model's route key.
      *
      * @return mixed
      */
-    public function getRouteKey()
+    public function getRouteKey() : mixed
     {
-        return $this->getAttribute($this->getRouteKeyName());
+        return $this->getAttribute( $this->getRouteKeyName() );
     }
+
 
     /**
      * Get the route key for the model.
      *
      * @return string
      */
-    public function getRouteKeyName()
+    #[Pure] public function getRouteKeyName() : string
     {
         return $this->getKeyName();
     }
 
+
     /**
      * Retrieve the model for a bound value.
      *
-     * @param  mixed  $value
-     * @param  string|null  $field
-     * @return \As247\WpEloquent\Database\Eloquent\Model|null
+     * @param mixed       $value
+     * @param string|null $field
+     *
+     * @return Model|null
      */
-    public function resolveRouteBinding($value, $field = null)
+    public function resolveRouteBinding( $value, $field = null ) : ?Model
     {
-        return $this->where($field ?? $this->getRouteKeyName(), $value)->first();
+        return $this->where( $field ?? $this->getRouteKeyName(), $value )->first();
     }
+
 
     /**
      * Retrieve the child model for a bound value.
      *
-     * @param  string  $childType
-     * @param  mixed  $value
-     * @param  string|null  $field
-     * @return \As247\WpEloquent\Database\Eloquent\Model|null
+     * @param string      $childType
+     * @param mixed       $value
+     * @param string|null $field
+     *
+     * @return Model|null
      */
-    public function resolveChildRouteBinding($childType, $value, $field)
+    public function resolveChildRouteBinding( string $childType, mixed $value, ?string $field ) : ?Model
     {
-        $relationship = $this->{Str::plural(Str::camel($childType))}();
+        $relationship = $this->{Str::plural( Str::camel( $childType ) )}();
 
-        $field = $field ?: $relationship->getRelated()->getRouteKeyName();
+        $field = $field ? : $relationship->getRelated()->getRouteKeyName();
 
-        if ($relationship instanceof HasManyThrough ||
-            $relationship instanceof BelongsToMany) {
-            return $relationship->where($relationship->getRelated()->getTable().'.'.$field, $value)->first();
-        } else {
-            return $relationship->where($field, $value)->first();
+        if( $relationship instanceof HasManyThrough ||
+            $relationship instanceof BelongsToMany ) {
+            return $relationship->where( $relationship->getRelated()->getTable() . '.' . $field, $value )->first();
         }
+
+        return $relationship->where( $field, $value )->first();
     }
+
 
     /**
      * Get the default foreign key name for the model.
      *
      * @return string
      */
-    public function getForeignKey()
+    public function getForeignKey() : string
     {
-        return Str::snake(asdb_class_basename($this)).'_'.$this->getKeyName();
+        return Str::snake( asdb_class_basename( $this ) ) . '_' . $this->getKeyName();
     }
+
 
     /**
      * Get the number of models to return per page.
      *
      * @return int
      */
-    public function getPerPage()
+    public function getPerPage() : int
     {
         return $this->perPage;
     }
 
+
     /**
      * Set the number of models to return per page.
      *
-     * @param  int  $perPage
+     * @param int $perPage
+     *
      * @return $this
      */
-    public function setPerPage($perPage)
+    public function setPerPage( int $perPage )
     {
         $this->perPage = $perPage;
 
         return $this;
     }
 
+
     /**
      * Dynamically retrieve attributes on the model.
      *
-     * @param  string  $key
+     * @param string $key
+     *
      * @return mixed
      */
-    public function __get($key)
+    public function __get( string $key )
     {
-        return $this->getAttribute($key);
+        return $this->getAttribute( $key );
     }
+
 
     /**
      * Dynamically set attributes on the model.
      *
-     * @param  string  $key
-     * @param  mixed  $value
+     * @param string $key
+     * @param mixed  $value
+     *
      * @return void
      */
-    public function __set($key, $value)
+    public function __set( string $key, mixed $value )
     {
-        $this->setAttribute($key, $value);
+        $this->setAttribute( $key, $value );
     }
+
 
     /**
      * Determine if the given attribute exists.
      *
-     * @param  mixed  $offset
+     * @param mixed $offset
+     *
      * @return bool
      */
-    public function offsetExists($offset)
+    public function offsetExists( mixed $offset ) : bool
     {
-        return ! is_null($this->getAttribute($offset));
+        return ! is_null( $this->getAttribute( $offset ) );
     }
+
 
     /**
      * Get the value for a given offset.
      *
-     * @param  mixed  $offset
+     * @param mixed $offset
+     *
      * @return mixed
      */
-    public function offsetGet($offset)
+    #[ReturnTypeWillChange] public function offsetGet( mixed $offset ) : mixed
     {
-        return $this->getAttribute($offset);
+        return $this->getAttribute( $offset );
     }
+
 
     /**
      * Set the value for a given offset.
      *
-     * @param  mixed  $offset
-     * @param  mixed  $value
+     * @param mixed $offset
+     * @param mixed $value
+     *
      * @return void
      */
-    public function offsetSet($offset, $value)
+    #[ReturnTypeWillChange] public function offsetSet( mixed $offset, mixed $value ) : mixed
     {
-        $this->setAttribute($offset, $value);
+        $this->setAttribute( $offset, $value );
     }
+
 
     /**
      * Unset the value for a given offset.
      *
-     * @param  mixed  $offset
+     * @param mixed $offset
+     *
      * @return void
      */
-    public function offsetUnset($offset)
+    #[ReturnTypeWillChange] public function offsetUnset( mixed $offset ) : void
     {
-        unset($this->attributes[$offset], $this->relations[$offset]);
+        unset( $this->attributes[ $offset ], $this->relations[ $offset ] );
     }
+
 
     /**
      * Determine if an attribute or relation exists on the model.
      *
-     * @param  string  $key
+     * @param string $key
+     *
      * @return bool
      */
-    public function __isset($key)
+    public function __isset( string $key ) : bool
     {
-        return $this->offsetExists($key);
+        return $this->offsetExists( $key );
     }
+
 
     /**
      * Unset an attribute on the model.
      *
-     * @param  string  $key
+     * @param string $key
+     *
      * @return void
      */
-    public function __unset($key)
+    public function __unset( string $key )
     {
-        $this->offsetUnset($key);
+        $this->offsetUnset( $key );
     }
+
 
     /**
      * Handle dynamic method calls into the model.
      *
-     * @param  string  $method
-     * @param  array  $parameters
+     * @param string $method
+     * @param array  $parameters
+     *
      * @return mixed
      */
-    public function __call($method, $parameters)
+    public function __call( string $method, array $parameters ) : mixed
     {
-        if (in_array($method, ['increment', 'decrement'])) {
-            return $this->$method(...$parameters);
+        if( in_array( $method, [ 'increment', 'decrement' ] ) ) {
+            return $this->$method( ...$parameters );
         }
 
-        if ($resolver = (static::$relationResolvers[get_class($this)][$method] ?? null)) {
-            return $resolver($this);
+        if( $resolver = ( static::$relationResolvers[ get_class( $this ) ][ $method ] ?? null ) ) {
+            return $resolver( $this );
         }
 
-        return $this->forwardCallTo($this->newQuery(), $method, $parameters);
+        return $this->forwardCallTo( $this->newQuery(), $method, $parameters );
     }
+
 
     /**
      * Handle dynamic static method calls into the model.
      *
-     * @param  string  $method
-     * @param  array  $parameters
+     * @param string $method
+     * @param array  $parameters
+     *
      * @return mixed
      */
-    public static function __callStatic($method, $parameters)
+    public static function __callStatic( string $method, array $parameters ) : mixed
     {
-        return (new static)->$method(...$parameters);
+        return ( new static )->$method( ...$parameters );
     }
+
 
     /**
      * Convert the model to its string representation.
      *
      * @return string
      */
-    public function __toString()
+    public function __toString() : string
     {
         return $this->toJson();
     }
+
 
     /**
      * Prepare the object for serialization.
      *
      * @return array
      */
-    public function __sleep()
+    public function __sleep() : array
     {
         $this->mergeAttributesFromClassCasts();
 
         $this->classCastCache = [];
 
-        return array_keys(get_object_vars($this));
+        return array_keys( get_object_vars( $this ) );
     }
+
 
     /**
      * When a model is being unserialized, check if it needs to be booted.
      *
      * @return void
      */
-    public function __wakeup()
+    public function __wakeup() : void
     {
         $this->bootIfNotBooted();
     }

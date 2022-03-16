@@ -85,10 +85,11 @@ trait AsPivot
     /**
      * Set the keys for a save update query.
      *
-     * @param  \As247\WpEloquent\Database\Eloquent\Builder  $query
+     * @param Builder $query
+     *
      * @return \As247\WpEloquent\Database\Eloquent\Builder
      */
-    protected function setKeysForSaveQuery($query)
+    protected function setKeysForSaveQuery( Builder $query)
     {
         if (isset($this->attributes[$this->getKeyName()])) {
             return parent::setKeysForSaveQuery($query);
@@ -258,10 +259,11 @@ trait AsPivot
     /**
      * Get a new query to restore one or more models by their queueable IDs.
      *
-     * @param  int[]|string[]|string  $ids
+     * @param int|int[]|string[] $ids
+     *
      * @return \As247\WpEloquent\Database\Eloquent\Builder
      */
-    public function newQueryForRestoration($ids)
+    public function newQueryForRestoration( int|array $ids)
     {
         if (is_array($ids)) {
             return $this->newQueryForCollectionRestoration($ids);

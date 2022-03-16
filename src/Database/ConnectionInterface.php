@@ -2,6 +2,8 @@
 
 namespace As247\WpEloquent\Database;
 
+use As247\WpEloquent\Database\Query\Builder;
+use As247\WpEloquent\Database\Query\Expression;
 use Closure;
 
 interface ConnectionInterface
@@ -9,162 +11,194 @@ interface ConnectionInterface
     /**
      * Begin a fluent query against a database table.
      *
-     * @param  \Closure|\As247\WpEloquent\Database\Query\Builder|string  $table
-     * @param  string|null  $as
-     * @return \As247\WpEloquent\Database\Query\Builder
+     * @param \Closure|Builder|string $table
+     * @param string|null             $as
+     *
+     * @return Builder
      */
-    public function table($table, $as = null);
+    public function table( $table, $as = null ) : Query\Builder;
+
 
     /**
      * Get a new raw query expression.
      *
-     * @param  mixed  $value
-     * @return \As247\WpEloquent\Database\Query\Expression
+     * @param mixed $value
+     *
+     * @return Expression
      */
-    public function raw($value);
+    public function raw( mixed $value ) : Query\Expression;
+
 
     /**
      * Run a select statement and return a single result.
      *
-     * @param  string  $query
-     * @param  array  $bindings
-     * @param  bool  $useReadPdo
+     * @param string $query
+     * @param array  $bindings
+     * @param bool   $useReadPdo
+     *
      * @return mixed
      */
-    public function selectOne($query, $bindings = [], $useReadPdo = true);
+    public function selectOne( string $query, array $bindings = [], bool $useReadPdo = true ) : mixed;
+
 
     /**
      * Run a select statement against the database.
      *
-     * @param  string  $query
-     * @param  array  $bindings
-     * @param  bool  $useReadPdo
+     * @param string $query
+     * @param array  $bindings
+     * @param bool   $useReadPdo
+     *
      * @return array
      */
-    public function select($query, $bindings = [], $useReadPdo = true);
+    public function select( string $query, array $bindings = [], bool $useReadPdo = true ) : array;
+
 
     /**
      * Run a select statement against the database and returns a generator.
      *
-     * @param  string  $query
-     * @param  array  $bindings
-     * @param  bool  $useReadPdo
+     * @param string $query
+     * @param array  $bindings
+     * @param bool   $useReadPdo
+     *
      * @return \Generator
      */
-    public function cursor($query, $bindings = [], $useReadPdo = true);
+    public function cursor( string $query, array $bindings = [], bool $useReadPdo = true ) : \Generator;
+
 
     /**
      * Run an insert statement against the database.
      *
-     * @param  string  $query
-     * @param  array  $bindings
+     * @param string $query
+     * @param array  $bindings
+     *
      * @return bool
      */
-    public function insert($query, $bindings = []);
+    public function insert( string $query, array $bindings = [] ) : bool;
+
 
     /**
      * Run an update statement against the database.
      *
-     * @param  string  $query
-     * @param  array  $bindings
+     * @param string $query
+     * @param array  $bindings
+     *
      * @return int
      */
-    public function update($query, $bindings = []);
+    public function update( string $query, array $bindings = [] ) : int;
+
 
     /**
      * Run a delete statement against the database.
      *
-     * @param  string  $query
-     * @param  array  $bindings
+     * @param string $query
+     * @param array  $bindings
+     *
      * @return int
      */
-    public function delete($query, $bindings = []);
+    public function delete( string $query, array $bindings = [] ) : int;
+
 
     /**
      * Execute an SQL statement and return the boolean result.
      *
-     * @param  string  $query
-     * @param  array  $bindings
+     * @param string $query
+     * @param array  $bindings
+     *
      * @return bool
      */
-    public function statement($query, $bindings = []);
+    public function statement( string $query, array $bindings = [] ) : bool;
+
 
     /**
      * Run an SQL statement and get the number of rows affected.
      *
-     * @param  string  $query
-     * @param  array  $bindings
+     * @param string $query
+     * @param array  $bindings
+     *
      * @return int
      */
-    public function affectingStatement($query, $bindings = []);
+    public function affectingStatement( string $query, array $bindings = [] ) : int;
+
 
     /**
      * Run a raw, unprepared query against the PDO connection.
      *
-     * @param  string  $query
+     * @param string $query
+     *
      * @return bool
      */
-    public function unprepared($query);
+    public function unprepared( string $query ) : bool;
+
 
     /**
      * Prepare the query bindings for execution.
      *
-     * @param  array  $bindings
+     * @param array $bindings
+     *
      * @return array
      */
-    public function prepareBindings(array $bindings);
+    public function prepareBindings( array $bindings ) : array;
+
 
     /**
      * Execute a Closure within a transaction.
      *
-     * @param  \Closure  $callback
-     * @param  int  $attempts
+     * @param \Closure $callback
+     * @param int      $attempts
+     *
      * @return mixed
      *
      * @throws \Throwable
      */
-    public function transaction(Closure $callback, $attempts = 1);
+    public function transaction( Closure $callback, int $attempts = 1 ) : mixed;
+
 
     /**
      * Start a new database transaction.
      *
      * @return void
      */
-    public function beginTransaction();
+    public function beginTransaction() : void;
+
 
     /**
      * Commit the active database transaction.
      *
      * @return void
      */
-    public function commit();
+    public function commit() : void;
+
 
     /**
      * Rollback the active database transaction.
      *
      * @return void
      */
-    public function rollBack();
+    public function rollBack() : void;
+
 
     /**
      * Get the number of active transactions.
      *
      * @return int
      */
-    public function transactionLevel();
+    public function transactionLevel() : int;
+
 
     /**
      * Execute the given callback in "dry run" mode.
      *
-     * @param  \Closure  $callback
+     * @param \Closure $callback
+     *
      * @return array
      */
-    public function pretend(Closure $callback);
+    public function pretend( Closure $callback ) : array;
+
 
     /**
      * Get the name of the connected database.
      *
      * @return string
      */
-    public function getDatabaseName();
+    public function getDatabaseName() : string;
 }
