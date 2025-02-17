@@ -137,11 +137,13 @@ class LengthAwarePaginator extends AbstractPaginator implements Arrayable, Array
      *
      * @return string|null
      */
-    public function nextPageUrl()
+    public function nextPageUrl(): ?string
     {
         if ($this->lastPage() > $this->currentPage()) {
             return $this->url($this->currentPage() + 1);
         }
+
+        return null;
     }
 
     /**
@@ -182,7 +184,7 @@ class LengthAwarePaginator extends AbstractPaginator implements Arrayable, Array
      *
      * @return array
      */
-    public function jsonSerialize()
+    public function jsonSerialize(): array
     {
         return $this->toArray();
     }
@@ -193,7 +195,7 @@ class LengthAwarePaginator extends AbstractPaginator implements Arrayable, Array
      * @param  int  $options
      * @return string
      */
-    public function toJson($options = 0)
+    public function toJson($options = 0): string
     {
         return json_encode($this->jsonSerialize(), $options);
     }

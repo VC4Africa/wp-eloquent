@@ -130,11 +130,13 @@ abstract class AbstractPaginator implements Htmlable
      *
      * @return string|null
      */
-    public function previousPageUrl()
+    public function previousPageUrl(): ?string
     {
         if ($this->currentPage() > 1) {
             return $this->url($this->currentPage() - 1);
         }
+
+        return null;
     }
 
     /**
@@ -144,7 +146,7 @@ abstract class AbstractPaginator implements Htmlable
      * @param  int  $end
      * @return array
      */
-    public function getUrlRange($start, $end)
+    public function getUrlRange($start, $end): array
     {
         return collect(range($start, $end))->mapWithKeys(function ($page) {
             return [$page => $this->url($page)];
@@ -157,6 +159,7 @@ abstract class AbstractPaginator implements Htmlable
      * @param  int  $page
      * @return string
      */
+    #[\ReturnTypeWillChange]
     public function url($page)
     {
         if ($page <= 0) {
@@ -522,6 +525,7 @@ abstract class AbstractPaginator implements Htmlable
      *
      * @return \ArrayIterator
      */
+    #[\ReturnTypeWillChange]
     public function getIterator()
     {
         return $this->items->getIterator();
@@ -552,7 +556,8 @@ abstract class AbstractPaginator implements Htmlable
      *
      * @return int
      */
-    public function count()
+    #[\ReturnTypeWillChange]
+    public function count(): int
     {
         return $this->items->count();
     }
@@ -596,6 +601,7 @@ abstract class AbstractPaginator implements Htmlable
      * @param  mixed  $key
      * @return bool
      */
+    #[\ReturnTypeWillChange]
     public function offsetExists($key)
     {
         return $this->items->has($key);
@@ -607,6 +613,7 @@ abstract class AbstractPaginator implements Htmlable
      * @param  mixed  $key
      * @return mixed
      */
+    #[\ReturnTypeWillChange]
     public function offsetGet($key)
     {
         return $this->items->get($key);
@@ -619,6 +626,7 @@ abstract class AbstractPaginator implements Htmlable
      * @param  mixed  $value
      * @return void
      */
+    #[\ReturnTypeWillChange]
     public function offsetSet($key, $value)
     {
         $this->items->put($key, $value);
@@ -630,6 +638,7 @@ abstract class AbstractPaginator implements Htmlable
      * @param  mixed  $key
      * @return void
      */
+    #[\ReturnTypeWillChange]
     public function offsetUnset($key)
     {
         $this->items->forget($key);

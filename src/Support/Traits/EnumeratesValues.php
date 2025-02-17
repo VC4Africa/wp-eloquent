@@ -594,6 +594,7 @@ trait EnumeratesValues
      * @param  string  $type
      * @return static
      */
+    #[\ReturnTypeWillChange]
     public function whereInstanceOf($type)
     {
         return $this->filter(function ($value) use ($type) {
@@ -702,6 +703,7 @@ trait EnumeratesValues
      *
      * @return array
      */
+    #[\ReturnTypeWillChange]
     public function jsonSerialize()
     {
         return array_map(function ($value) {

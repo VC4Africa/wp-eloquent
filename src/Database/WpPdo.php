@@ -17,7 +17,7 @@ class WpPdo extends PDO
     public function __construct($wpdb)
     {
         try {
-            parent::__construct(null);
+            parent::__construct('');
         }catch (PDOException $e){
 
         }
@@ -48,6 +48,7 @@ class WpPdo extends PDO
      * <b>Note</b>: An exception is raised even when the <b>PDO::ATTR_ERRMODE</b>
      * attribute is not <b>PDO::ERRMODE_EXCEPTION</b>.
      */
+    #[\ReturnTypeWillChange]
     public function beginTransaction () {
         if($this->in_transaction){
             throw new PDOException("Failed to start transaction. Transaction is already started.");
@@ -63,6 +64,7 @@ class WpPdo extends PDO
      * @return bool <b>TRUE</b> on success or <b>FALSE</b> on failure.
      * @throws PDOException if there is no active transaction.
      */
+    #[\ReturnTypeWillChange]
     public function commit () {
         if(!$this->in_transaction){
             throw new PDOException("There is no active transaction to commit");
@@ -78,6 +80,7 @@ class WpPdo extends PDO
      * @return bool <b>TRUE</b> on success or <b>FALSE</b> on failure.
      * @throws PDOException if there is no active transaction.
      */
+    #[\ReturnTypeWillChange]
     public function rollBack () {
         if(!$this->in_transaction){
             throw new PDOException("There is no active transaction to rollback");
@@ -92,6 +95,7 @@ class WpPdo extends PDO
      * @link https://php.net/manual/en/pdo.intransaction.php
      * @return bool <b>TRUE</b> if a transaction is currently active, and <b>FALSE</b> if not.
      */
+    #[\ReturnTypeWillChange]
     public function inTransaction () {
         return $this->in_transaction;
     }
@@ -125,6 +129,7 @@ class WpPdo extends PDO
      * $db->exec() or die(print_r($db->errorInfo(), true));
      * </code>
      */
+    #[\ReturnTypeWillChange]
     public function exec ($statement) {
         return $this->db->unprepared($statement);
     }
@@ -152,6 +157,7 @@ class WpPdo extends PDO
      * <b>PDO::lastInsertId</b> triggers an
      * IM001 SQLSTATE.
      */
+    #[\ReturnTypeWillChange]
     public function lastInsertId($name=null)
     {
         return $this->db->getWpdb()->insert_id;
